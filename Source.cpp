@@ -3,27 +3,42 @@
 joe::Engine en;
 GLfloat angle = 90.0f;
 float coold = 0;
-void mainRender() {
-	float delta = en.getDelta();
-	std::cout << delta << std::endl;
+float delta = 0;
+std::vector<Voxel> voxels;
+void vUpdateRotating(Voxel *p) {
 	coold += delta;
 	if (coold >= 0.01f) {
-		angle++;
 		coold = 0;
+		(*p).rotation++;
 	}
+	//glTranslatef(0.0001f, 0.0001f, 0);
+	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
+}
+void vUpdate(Voxel *p) {
+	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
+}
+
+void mainRender() {
+	delta = en.getDelta();
+	std::cout << delta << std::endl;
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glTranslatef(0.5f, 0.1f, 0.1f);
-	en.drawVoxel(0.15, 0.15f, 0.15f, 0.1f, angle);
-	//en.drawVoxel(0.1f, 0.1f, 0.25f, 5.0, 80.0f);
-	//en.drawVoxel(0.1f, -0.2f, 0.25f, 5.0, 60.0f);
+	for (auto& i : voxels) {
+		i.Update(&i);
+	}
 	glutSwapBuffers();
-	//glFlush();
-	//glutPostRedisplay();
+	glFlush();
+	glutPostRedisplay();
 }
 
 
 int main(int argc, char* argv[]) {
+	Voxel v = { 0.35f, 0.35f, 0.35f, 0.2f, 90.0f };
+	v.Update = &vUpdateRotating;
+	Voxel v1 = { -0.75f, -0.45f, 0.3f, 0.1f, 60.0f };
+	v1.Update = &vUpdate;
+	voxels.push_back(v);
+	voxels.push_back(v1);
 	en.init(argc, argv, mainRender, 800, 800);
 	
 	return 0;
