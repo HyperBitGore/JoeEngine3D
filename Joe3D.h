@@ -1,6 +1,8 @@
 #pragma once
 #include <iostream>
+#include <fstream>
 #include <vector>
+#include <string>
 #include <chrono>
 #include <thread>
 #include <algorithm>
@@ -30,7 +32,53 @@ namespace joe {
 	private:
 		std::chrono::high_resolution_clock::time_point old_d;
 	public:
-		//Use glTranslatef
+		//Serilization functions
+		void serilizeWriteVoxels(std::string file, std::vector<Voxel>* voxels) {
+			std::fstream f;
+			f.open(file, std::fstream::in | std::fstream::out | std::fstream::binary);
+			if (!f) {
+				std::fstream c;
+				c.open(file, std::fstream::in | std::fstream::out | std::fstream::trunc);
+				c.close();
+				f.open(file, std::fstream::in | std::fstream::out | std::fstream::binary);
+			}
+			for (auto& i : (*voxels)) {
+				f.write(reinterpret_cast<char*>(&i.x), sizeof(i.x));
+				f.write("|", sizeof("|"));
+				f.write(reinterpret_cast<char*>(&i.y), sizeof(i.y));
+				f.write("|", sizeof("|"));
+				f.write(reinterpret_cast<char*>(&i.z), sizeof(i.z));
+				f.write("|", sizeof("|"));
+			}
+
+			f.close();
+		}
+		void serilizeReadVoxels(std::string file, std::vector<Voxel>* voxels) {
+			std::fstream f;
+			f.open(file, std::fstream::out | std::fstream::binary | std::fstream::app);
+			if (!f) {
+				return;
+			}
+			std::string line;
+			Voxel v;
+			while (std::getline(f, line)) {
+				char* buf = new char[line.size()];
+				f.read(buf, sizeof(line));
+				std::cout << (unsigned int)buf << std::endl;
+				delete(buf);
+			}
+			f.close();
+		}
+		//Will write
+		void serilizeWrite(std::string file, std::fstream* f) {
+			
+
+		}
+		void serilizeRead(std::string file, std::fstream* f) {
+			
+		}
+	public:
+		//Drawing functions
 		void drawVoxel(GLfloat x, GLfloat y, GLfloat z, GLfloat size,GLfloat rotation) {
 			glPushMatrix();
 			glRotatef(rotation, 0.5, 0.5, 0.5);
