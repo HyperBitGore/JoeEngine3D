@@ -3,26 +3,41 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <map>
 #include <chrono>
 #include <thread>
 #include <algorithm>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
-
-
 struct Voxel {
 	float x;
 	float y;
 	float z;
 	float size;
 	float rotation;
+	std::string funcname;
+	bool findfunc;
 	void(*Update)(Voxel*);
 };
+typedef void (*UpdateFunc)(Voxel*);
 
 
-void idle() {
+void vUpdate(Voxel *p);
+void vUpdateRotating(Voxel *p);
 
+
+std::map<std::string, void(*)(Voxel*)> voxfmap;
+//Fix the key for some reason not being found
+void setVoxelFunc(Voxel *p, std::string f) {
+	std::map<std::string, void(*)(Voxel*)>::iterator id;
+	id = voxfmap.find(f);
+	if (id != voxfmap.end()) {
+		(*p).Update = voxfmap.at(f);
+	}
+	
 }
+
+void idle() {}
 void changeViewPort(int w, int h) {
 	glViewport(0, 0, w, h);
 }
@@ -33,39 +48,81 @@ namespace joe {
 		std::chrono::high_resolution_clock::time_point old_d;
 	public:
 		//Serilization functions
+		//Rewrite this to not use binary and use human readable format you nonce
 		void serilizeWriteVoxels(std::string file, std::vector<Voxel>* voxels) {
 			std::fstream f;
-			f.open(file, std::fstream::in | std::fstream::out | std::fstream::binary);
+			f.open(file, std::fstream::in | std::fstream::out);
 			if (!f) {
 				std::fstream c;
 				c.open(file, std::fstream::in | std::fstream::out | std::fstream::trunc);
 				c.close();
-				f.open(file, std::fstream::in | std::fstream::out | std::fstream::binary);
+				f.open(file, std::fstream::in | std::fstream::out);
 			}
 			for (auto& i : (*voxels)) {
-				f.write(reinterpret_cast<char*>(&i.x), sizeof(i.x));
-				f.write("|", sizeof("|"));
-				f.write(reinterpret_cast<char*>(&i.y), sizeof(i.y));
-				f.write("|", sizeof("|"));
-				f.write(reinterpret_cast<char*>(&i.z), sizeof(i.z));
-				f.write("|", sizeof("|"));
+				f << std::to_string(i.x) + "|";
+				f << std::to_string(i.y) + "|";
+				f << std::to_string(i.z) + "|";
+				f << std::to_string(i.size) + "|";
+				f << std::to_string(i.rotation) + "|";
+				f << i.funcname + "|";
+				f << "[]\n";
 			}
 
 			f.close();
 		}
 		void serilizeReadVoxels(std::string file, std::vector<Voxel>* voxels) {
 			std::fstream f;
-			f.open(file, std::fstream::out | std::fstream::binary | std::fstream::app);
+			f.open(file, std::fstream::in | std::fstream::out | std::fstream::app);
 			if (!f) {
+				std::cout << "Error opening vox file" << std::endl;
 				return;
 			}
 			std::string line;
-			Voxel v;
+			int mode = 1;
 			while (std::getline(f, line)) {
-				char* buf = new char[line.size()];
-				f.read(buf, sizeof(line));
-				std::cout << (unsigned int)buf << std::endl;
-				delete(buf);
+				Voxel v;
+				std::string n;
+				mode = 1;
+				for (int i = 0; i < line.size(); i++) {
+					if (line[i] == '|') {
+						switch (mode) {
+						case 1:
+							v.x = std::stof(n);
+							std::cout << v.x << "|";
+							break;
+						case 2:
+							v.y = std::stof(n);
+							std::cout << v.y << "|";
+							break;
+						case 3:
+							v.z = std::stof(n);
+							std::cout << v.z << "|";
+							break;
+						case 4:
+							v.size = std::stof(n);
+							std::cout << v.size << "|";
+							break;
+						case 5:
+							v.rotation = std::stof(n);
+							std::cout << v.rotation << "|";
+							break;
+						case 6:
+							v.funcname = n;
+							v.findfunc = true;
+							std::cout << " " + v.funcname + " " << std::endl;
+							voxels->push_back(v);
+							break;
+						}
+						mode++;
+						n.clear();
+					}
+					else {
+						if (line[i] != '\n') {
+							n.push_back(line[i]);
+						}
+					}
+
+				}
 			}
 			f.close();
 		}
@@ -143,6 +200,10 @@ namespace joe {
 				return;
 			}
 			old_d = std::chrono::high_resolution_clock::now();
+			std::string l = "vUpdate";
+			voxfmap.insert(std::pair<std::string, void(*)(Voxel*)>(l, &vUpdate));
+			l = "vUpdateRotating";
+			voxfmap.insert(std::pair<std::string, void(*)(Voxel*)>(l, &vUpdateRotating));
 			glutMainLoop();
 		}
 		float getDelta() {
@@ -154,4 +215,8 @@ namespace joe {
 		}
 	};
 
+}
+void vUpdate(Voxel *p) {
+	joe::Engine en;
+	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
 }
