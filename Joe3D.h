@@ -9,6 +9,13 @@
 #include <algorithm>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
+
+struct Vec3d {
+	double x;
+	double y;
+	double z;
+};
+
 struct Voxel {
 	float x;
 	float y;
@@ -126,14 +133,6 @@ namespace joe {
 			}
 			f.close();
 		}
-		//Will write
-		void serilizeWrite(std::string file, std::fstream* f) {
-			
-
-		}
-		void serilizeRead(std::string file, std::fstream* f) {
-			
-		}
 	public:
 		//Drawing functions
 		void drawVoxel(GLfloat x, GLfloat y, GLfloat z, GLfloat size,GLfloat rotation) {
@@ -180,7 +179,7 @@ namespace joe {
 			glPopMatrix();
 		}
 	public:
-		void init(int argc, char* argv[], void(*render)(), const int width, const int height){
+		void init(int argc, char* argv[], void(*render)(), void(*special)(int key, int x, int y),const int width, const int height){
 			glutInit(&argc, argv);
 			glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
 			glutInitWindowSize(width, height);
@@ -194,6 +193,7 @@ namespace joe {
 			glutIdleFunc(idle);
 			glutReshapeFunc(changeViewPort);
 			glutDisplayFunc(render);
+			glutSpecialFunc(special);
 			GLenum err = glewInit();
 			if (GLEW_OK != err) {
 				printf("Error");
@@ -215,8 +215,4 @@ namespace joe {
 		}
 	};
 
-}
-void vUpdate(Voxel *p) {
-	joe::Engine en;
-	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
 }
