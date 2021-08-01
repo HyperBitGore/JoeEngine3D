@@ -8,7 +8,8 @@
 #include <thread>
 #include <algorithm>
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <GLFW/glfw3.h>
+
 
 struct Vec3d {
 	double x;
@@ -44,7 +45,6 @@ void setVoxelFunc(Voxel *p, std::string f) {
 	
 }
 
-void idle() {}
 void changeViewPort(int w, int h) {
 	glViewport(0, 0, w, h);
 }
@@ -179,32 +179,25 @@ namespace joe {
 			glPopMatrix();
 		}
 	public:
-		void init(int argc, char* argv[], void(*render)(), void(*special)(int key, int x, int y),const int width, const int height){
-			glutInit(&argc, argv);
-			glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
-			glutInitWindowSize(width, height);
-			glutInitWindowPosition(50, 50);
-			glutCreateWindow("Joe Engine");
-			glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_EXIT);
+		//Convert this to glfw
+		void init(std::string title,GLFWwindow* win, const int width, const int height){
+			glfwInit();
+			glewInit();
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glReadBuffer(GL_BACK);
 			glMatrixMode(GL_MODELVIEW);
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_LEQUAL);
-			glutIdleFunc(idle);
-			glutReshapeFunc(changeViewPort);
-			glutDisplayFunc(render);
-			glutSpecialFunc(special);
-			GLenum err = glewInit();
-			if (GLEW_OK != err) {
-				printf("Error");
-				return;
-			}
 			old_d = std::chrono::high_resolution_clock::now();
 			std::string l = "vUpdate";
 			voxfmap.insert(std::pair<std::string, void(*)(Voxel*)>(l, &vUpdate));
 			l = "vUpdateRotating";
 			voxfmap.insert(std::pair<std::string, void(*)(Voxel*)>(l, &vUpdateRotating));
-			glutMainLoop();
+			GLenum err = glewInit();
+			if (GLEW_OK != err) {
+				printf("Glew Error");
+				return;
+			}
 		}
 		float getDelta() {
 			std::chrono::high_resolution_clock::time_point t = std::chrono::high_resolution_clock::now();

@@ -5,12 +5,16 @@ GLfloat angle = 90.0f;
 GLdouble cangle = 0.0;
 float coold = 0;
 float delta = 0;
-Vec3d camera = { 0.0, 1.0, 0.0 };
-double lx = 0.0;
-double lz = 0.0;
+Vec3d camera = { 0.0, 0.0, 0.0 };
+double hcangle = 3.14;
+double vcangle = 0.0;
+double initalfov = 45.0;
+double speed = 3.0;
+double mspeed = 0.005;
 std::vector<Voxel> voxels;
+bool movecam = false;
+GLFWwindow* wind;
 void vUpdateRotating(Voxel *p) {
-	glPopMatrix();
 	coold += delta;
 	if (coold >= 0.01f) {
 		coold = 0;
@@ -18,58 +22,52 @@ void vUpdateRotating(Voxel *p) {
 	}
 	//glTranslatef(0.0001f, 0.0001f, 0);
 	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
-	glPushMatrix();
 }
 void vUpdate(Voxel *p) {
-	//joe::Engine en;
-	glPopMatrix();
 	en.drawVoxel((*p).x, (*p).y, (*p).z, (*p).size, (*p).rotation);
-	glPushMatrix();
 }
-//This doesnt rly work
+//Convert this entire project into glfw
 void movementUpdate(int key, int xx, int yy) {
 	float fraction = 0.1f;
 	switch (key) {
-	case GLUT_KEY_LEFT:
-		cangle -= 0.01;
+	case GLFW_KEY_LEFT:
+		hcangle -= 0.01;
 		break;
-	case GLUT_KEY_RIGHT:
-		cangle += 0.01;
+	case GLFW_KEY_RIGHT:
+		hcangle += 0.01;
 		break;
-	case GLUT_KEY_UP:
-		camera.x += 0.01;
+	case GLFW_KEY_UP:
 		camera.z += 0.01;
+		movecam = true;
 		break;
-	case GLUT_KEY_DOWN:
-		camera.x -= 0.01;
+	case GLFW_KEY_DOWN:
 		camera.z -= 0.01;
+		movecam = true;
 		break;
 	}
 }
-
-void mainRender() {
+//Use rotate and translate on a final matrix to change entire screen
+void mainRender(GLFWwindow* wind) {
 	delta = en.getDelta();
-	//std::cout << delta << std::endl;
-	glutSwapBuffers();
+	glfwSwapBuffers(wind);
 	glLoadIdentity();
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	
 	for (auto& i : voxels) {
-		if (i.findfunc) {
-			setVoxelFunc(&i, i.funcname);
-			i.findfunc = false;
-		}
 		i.Update(&i);
 	}
 	glPopMatrix();
 	glRotated(cangle, camera.x, camera.y, camera.z);
+	if (movecam) {
+		glTranslated(camera.x, camera.y, camera.z);
+		movecam = false;
+	}
 	glPushMatrix();
-	//glTranslated(-camera.x, -camera.y, -camera.z);
+	glfwSwapBuffers(wind);
 	glFlush();
-	glutPostRedisplay();
+	glfwPollEvents();
 }
 
-
+//Convert everything to glfw and get to good position
 int main(int argc, char* argv[]) {
 	/*Voxel v = { 0.35f, 0.35f, 0.35f, 0.2f, 90.0f, "vUpdateRotating"};
 	v.Update = &vUpdateRotating;
@@ -79,8 +77,22 @@ int main(int argc, char* argv[]) {
 	voxels.push_back(v1);
 	en.serilizeWriteVoxels("vox.vox", &voxels);*/
 	en.serilizeReadVoxels("vox.vox", &voxels);
+	en.init("Voxel Game", wind, 800, 800);
+	wind = glfwCreateWindow(800, 800, "Test", NULL, NULL);
+	glfwMakeContextCurrent(wind);
+	glfwSwapInterval(1);
+	for (auto& i : voxels) {
+		if (i.findfunc) {
+			setVoxelFunc(&i, i.funcname);
+			i.findfunc = false;
+		}
+	}
+	//glMatrixMode(GL_PROJECTION);
+	while (!glfwWindowShouldClose(wind)) {
+		mainRender(wind);
 
-	en.init(argc, argv, mainRender, movementUpdate, 800, 800);
-	
+	}
+	glfwDestroyWindow(wind);
+	glfwTerminate();
 	return 0;
 }
