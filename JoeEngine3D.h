@@ -11,49 +11,14 @@
 #include <GLFW/glfw3.h>
 
 namespace Joe {
-	class Engine {
-	public:
-		static GLFWwindow* initGL() {
-			srand(time(NULL));
-			glewExperimental = true;
-			if (glfwInit() == GLFW_FALSE) {
-				std::cout << "Failed to init glfw" << std::endl;
-			}
-			glfwWindowHint(GLFW_SAMPLES, 4);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-			GLFWwindow* wind;
-			wind = glfwCreateWindow(1024, 768, "Learn OpenGL Intermediate", NULL, NULL);
-			glfwMakeContextCurrent(wind);
-			if (glewInit() != GLEW_OK) {
-				std::cout << "Failed to init glew" << std::endl;
-			}
-			glfwSetInputMode(wind, GLFW_STICKY_KEYS, GL_TRUE);
-			//enable the depth testing
-			glEnable(GL_DEPTH_TEST);
-			//Accept fragment if close to camera than last one
-			glDepthFunc(GL_LESS);
-			glEnable(GL_CULL_FACE);
-
-			GLuint VertexArrayID;
-			glGenVertexArrays(1, &VertexArrayID);
-			glBindVertexArray(VertexArrayID);
-			return wind;
-		}
-		static void drawWindow(GLFWwindow* wind) {
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-
-			glfwSwapBuffers(wind);
-			glfwPollEvents();
-
-		}
+	struct Model {
+		std::vector<glm::vec3> vertices;
+		std::vector<glm::vec2> uvs;
+		std::vector<glm::vec3> normals;
+		GLuint vertexbuffer;
+		GLuint normalbuffer;
+		GLuint uvbuffer;
 	};
-
-
-
 	class Files {
 	public:
 		static GLuint LoadShaders(const char* vertex_file_path, const char* fragment_file_path) {
@@ -272,6 +237,82 @@ namespace Joe {
 			//delete[] data;
 		}
 	};
+
+
+
+	class Engine {
+	public:
+		static GLFWwindow* initGL() {
+			srand(time(NULL));
+			glewExperimental = true;
+			if (glfwInit() == GLFW_FALSE) {
+				std::cout << "Failed to init glfw" << std::endl;
+			}
+			glfwWindowHint(GLFW_SAMPLES, 4);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+			GLFWwindow* wind;
+			wind = glfwCreateWindow(1024, 768, "Learn OpenGL Intermediate", NULL, NULL);
+			glfwMakeContextCurrent(wind);
+			if (glewInit() != GLEW_OK) {
+				std::cout << "Failed to init glew" << std::endl;
+			}
+			glfwSetInputMode(wind, GLFW_STICKY_KEYS, GL_TRUE);
+			//enable the depth testing
+			glEnable(GL_DEPTH_TEST);
+			//Accept fragment if close to camera than last one
+			glDepthFunc(GL_LESS);
+			glEnable(GL_CULL_FACE);
+
+			GLuint VertexArrayID;
+			glGenVertexArrays(1, &VertexArrayID);
+			glBindVertexArray(VertexArrayID);
+			return wind;
+		}
+		static void initBuffers(Model *model) {
+			glGenBuffers(1, &model->vertexbuffer);
+			glBindBuffer(GL_ARRAY_BUFFER, model->vertexbuffer);
+			glBufferData(GL_ARRAY_BUFFER, model->vertices.size() * sizeof(glm::vec3), &model->vertices[0], GL_STATIC_DRAW);
+			glGenBuffers(1, &model->uvbuffer);
+			glBindBuffer(GL_ARRAY_BUFFER, model->uvbuffer);
+			glBufferData(GL_ARRAY_BUFFER, model->uvs.size() * sizeof(glm::vec2), &model->uvs[0], GL_STATIC_DRAW);
+			glGenBuffers(1, &model->normalbuffer);
+			glBindBuffer(GL_ARRAY_BUFFER, model->normalbuffer);
+			glBufferData(GL_ARRAY_BUFFER, model->normals.size() * sizeof(glm::vec3), &model->normals[0], GL_STATIC_DRAW);
+		}
+
+		static void drawWindow(GLFWwindow* wind, std::vector<Model>& models) {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			for (auto& i : models) {
+				//vertex attrib
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, i.vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//uv attrib
+				glEnableVertexAttribArray(1);
+				glBindBuffer(GL_ARRAY_BUFFER, i.uvbuffer);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//normal attrib
+				glEnableVertexAttribArray(2);
+				glBindBuffer(GL_ARRAY_BUFFER, i.normalbuffer);
+				glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, i.vertices.size() * 3);
+			}
+
+
+			glfwSwapBuffers(wind);
+			glfwPollEvents();
+		}
+		static void addModel(const char* filepath, std::vector<Model>& models) {
+			Model m;
+			Joe::Files::loadOBJ(filepath, m.vertices, m.uvs, m.normals);
+			initBuffers(&m);
+			models.push_back(m);
+		}
+	};
+
+
 	class Controls {
 	private:
 		// position
