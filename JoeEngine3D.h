@@ -284,6 +284,9 @@ namespace Joe {
 
 		static void drawWindow(GLFWwindow* wind, std::vector<Model>& models) {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			std::vector<glm::vec3> vertices;
+			std::vector<glm::vec2> uvs;
+			std::vector<glm::vec3> normals;
 			for (auto& i : models) {
 				//vertex attrib
 				glEnableVertexAttribArray(0);
@@ -298,8 +301,11 @@ namespace Joe {
 				glBindBuffer(GL_ARRAY_BUFFER, i.normalbuffer);
 				glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 				glDrawArrays(GL_TRIANGLES, 0, i.vertices.size() * 3);
+				//std::copy(i.vertices.begin(), i.vertices.end(), std::back_inserter(vertices));
+				//std::copy(i.uvs.begin(), i.uvs.end(), std::back_inserter(uvs));
+				//std::copy(i.normals.begin(), i.normals.end(), std::back_inserter(normals));
 			}
-
+		
 
 			glfwSwapBuffers(wind);
 			glfwPollEvents();
@@ -309,6 +315,16 @@ namespace Joe {
 			Joe::Files::loadOBJ(filepath, m.vertices, m.uvs, m.normals);
 			initBuffers(&m);
 			models.push_back(m);
+		}
+		//this is slow as compared to changing model matrices, but i dont really care
+		static void moveModelVertices(Model* model, glm::vec3 change) {
+			for (auto& i : model->vertices) {
+				i.x += change.x;
+				i.y += change.y;
+				i.z += change.z;
+			}
+			glBindBuffer(GL_ARRAY_BUFFER, model->vertexbuffer);
+			glBufferData(GL_ARRAY_BUFFER, model->vertices.size() * sizeof(glm::vec3), &model->vertices[0], GL_STATIC_DRAW);
 		}
 	};
 

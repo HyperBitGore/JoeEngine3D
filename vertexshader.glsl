@@ -11,6 +11,7 @@ out vec2 UV;
 out vec3 Normal;
 out vec3 l;
 out float cosAlpha;
+out float distance;
 void main(){
 	gl_Position = MVP * vec4(vertexPosition_modelspace, 1);
 	
@@ -31,4 +32,7 @@ void main(){
 	// Direction in which the triangle reflects the light
 	vec3 R = reflect(-l,Normal);
 	cosAlpha = clamp( dot( E,R ), 0,1 );
+	vec3 temp = abs(Position_worldspace - LIGHT);
+	float avgdis = (temp.x + temp.y + temp.z)/3;
+	distance = avgdis;
 }
