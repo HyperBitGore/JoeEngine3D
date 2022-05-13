@@ -6,10 +6,11 @@ int main() {
 	
 	//Joe::Files::LoadShaders("vertshader.glsl", "fragshader.glsl");
 	GLuint programID = Joe::Files::LoadShaders("vertexshader.glsl", "fragmentshader.glsl");
-	Joe::Files::loadBMP_Texture("xoK5F.bmp");
+	GLuint tex1 = Joe::Files::loadBMP_Texture("xoK5F.bmp");
+	GLuint tex2 = Joe::Files::loadBMP_Texture("tex2.bmp");
 	std::vector<Joe::Model> models;
-	Joe::Engine::addModel("monkey.obj", models);
-	Joe::Engine::addModel("monkey.obj", models);
+	Joe::Engine::addModel("monkey.obj", models, tex1);
+	Joe::Engine::addModel("monkey.obj", models, tex2);
 	Joe::Engine::moveModelVertices(&models[1], glm::vec3(1.0, 0.0, 0.0));
 	Joe::Controls control;
 	GLuint lightmat = glGetUniformLocation(programID, "LIGHT");
