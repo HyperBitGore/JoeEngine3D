@@ -11,6 +11,11 @@
 #include <GLFW/glfw3.h>
 
 namespace Joe {
+	struct AABB {
+		//std::vector<glm::vec3> points;
+		glm::vec3 min;
+		glm::vec3 max;
+	};
 	struct Model {
 		std::vector<glm::vec3> vertices;
 		std::vector<glm::vec2> uvs;
@@ -18,7 +23,17 @@ namespace Joe {
 		GLuint vertexbuffer;
 		GLuint normalbuffer;
 		GLuint uvbuffer;
+		GLuint texture;
 	};
+	struct Entity : Model {
+		AABB bounding;
+	};
+	struct Ray {
+		glm::vec3 point;
+		glm::vec3 inc;
+		glm::vec3 distance;
+	};
+
 	class Files {
 	public:
 		static GLuint LoadShaders(const char* vertex_file_path, const char* fragment_file_path) {
@@ -238,11 +253,10 @@ namespace Joe {
 		}
 	};
 
-
-
 	class Engine {
 	public:
-		static GLFWwindow* initGL() {
+		//sets up basic GL
+		static GLFWwindow* initGL(int w, int h) {
 			srand(time(NULL));
 			glewExperimental = true;
 			if (glfwInit() == GLFW_FALSE) {
@@ -253,7 +267,7 @@ namespace Joe {
 			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 			GLFWwindow* wind;
-			wind = glfwCreateWindow(1024, 768, "Learn OpenGL Intermediate", NULL, NULL);
+			wind = glfwCreateWindow(w, h, "Learn OpenGL Intermediate", NULL, NULL);
 			glfwMakeContextCurrent(wind);
 			if (glewInit() != GLEW_OK) {
 				std::cout << "Failed to init glew" << std::endl;
@@ -270,6 +284,7 @@ namespace Joe {
 			glBindVertexArray(VertexArrayID);
 			return wind;
 		}
+		//inits unique buffers for a model
 		static void initBuffers(Model *model) {
 			glGenBuffers(1, &model->vertexbuffer);
 			glBindBuffer(GL_ARRAY_BUFFER, model->vertexbuffer);
@@ -281,13 +296,14 @@ namespace Joe {
 			glBindBuffer(GL_ARRAY_BUFFER, model->normalbuffer);
 			glBufferData(GL_ARRAY_BUFFER, model->normals.size() * sizeof(glm::vec3), &model->normals[0], GL_STATIC_DRAW);
 		}
-
+		//Just draws raw models with no collision objects attached
 		static void drawWindow(GLFWwindow* wind, std::vector<Model>& models) {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			std::vector<glm::vec3> vertices;
 			std::vector<glm::vec2> uvs;
 			std::vector<glm::vec3> normals;
 			for (auto& i : models) {
+				glBindTexture(GL_TEXTURE_2D, i.texture);
 				//vertex attrib
 				glEnableVertexAttribArray(0);
 				glBindBuffer(GL_ARRAY_BUFFER, i.vertexbuffer);
@@ -310,10 +326,42 @@ namespace Joe {
 			glfwSwapBuffers(wind);
 			glfwPollEvents();
 		}
-		static void addModel(const char* filepath, std::vector<Model>& models) {
+		//overload for use if you want to use Entities instead of models
+		static void drawWindow(GLFWwindow* wind, std::vector<Entity*>& models) {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			std::vector<glm::vec3> vertices;
+			std::vector<glm::vec2> uvs;
+			std::vector<glm::vec3> normals;
+			for (auto& i : models) {
+				glBindTexture(GL_TEXTURE_2D, i->texture);
+				//vertex attrib
+				glEnableVertexAttribArray(0);
+				glBindBuffer(GL_ARRAY_BUFFER, i->vertexbuffer);
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//uv attrib
+				glEnableVertexAttribArray(1);
+				glBindBuffer(GL_ARRAY_BUFFER, i->uvbuffer);
+				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				//normal attrib
+				glEnableVertexAttribArray(2);
+				glBindBuffer(GL_ARRAY_BUFFER, i->normalbuffer);
+				glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+				glDrawArrays(GL_TRIANGLES, 0, i->vertices.size() * 3);
+				//std::copy(i.vertices.begin(), i.vertices.end(), std::back_inserter(vertices));
+				//std::copy(i.uvs.begin(), i.uvs.end(), std::back_inserter(uvs));
+				//std::copy(i.normals.begin(), i.normals.end(), std::back_inserter(normals));
+			}
+
+
+			glfwSwapBuffers(wind);
+			glfwPollEvents();
+		}
+		//creates a model struct and loads the obj data from file
+		static void addModel(const char* filepath, std::vector<Model>& models, GLuint texture) {
 			Model m;
 			Joe::Files::loadOBJ(filepath, m.vertices, m.uvs, m.normals);
 			initBuffers(&m);
+			m.texture = texture;
 			models.push_back(m);
 		}
 		//this is slow as compared to changing model matrices, but i dont really care
@@ -325,6 +373,85 @@ namespace Joe {
 			}
 			glBindBuffer(GL_ARRAY_BUFFER, model->vertexbuffer);
 			glBufferData(GL_ARRAY_BUFFER, model->vertices.size() * sizeof(glm::vec3), &model->vertices[0], GL_STATIC_DRAW);
+		}
+		//this is slow as compared to changing model matrices, but i dont really care
+		static void moveEntityVertices(Entity* model, glm::vec3 change) {
+			for (auto& i : model->vertices) {
+				i.x += change.x;
+				i.y += change.y;
+				i.z += change.z;
+			}
+			glBindBuffer(GL_ARRAY_BUFFER, model->vertexbuffer);
+			glBufferData(GL_ARRAY_BUFFER, model->vertices.size() * sizeof(glm::vec3), &model->vertices[0], GL_STATIC_DRAW);
+		}
+		static AABB constructAABB(Model* model) {
+			AABB box;
+			//get min/max for x, then do y, then do z;
+			//construct the box points from that
+			glm::vec3 ptmin(model->vertices[0]);
+			glm::vec3 ptmax(model->vertices[0]);
+			for (auto& i : model->vertices) {
+				ptmin.x = glm::min(ptmin.x, i.x);
+				ptmax.x = glm::max(ptmax.x, i.x);
+				ptmin.y = glm::min(ptmin.y, i.y);
+				ptmax.y = glm::max(ptmax.y, i.y);
+				ptmin.z = glm::min(ptmin.z, i.z);
+				ptmax.z = glm::max(ptmax.z, i.z);
+			}
+			box.max = ptmax;
+			box.min = ptmin;
+
+			return box;
+		}
+		static void moveAABB(AABB* box, glm::vec3 change) {
+			box->max += change;
+			box->min += change;
+		}
+		static bool AABBcollision(AABB one, AABB two) {
+			if (one.min.x <= two.max.x && one.max.x >= two.min.x &&
+				one.min.y <= two.max.y && one.max.y >= two.min.y &&
+				one.min.z <= two.max.z && one.max.z >= two.min.z) {
+				return true;
+			}
+
+			return false;
+		}
+		static Entity createEntity(Model* model) {
+			Entity e;
+			e.vertexbuffer = model->vertexbuffer;
+			e.uvbuffer = model->uvbuffer;
+			e.normalbuffer = model->normalbuffer;
+			e.vertices = model->vertices;
+			e.uvs = model->uvs;
+			e.normals = model->normals;
+			e.texture = model->texture;
+			e.bounding = constructAABB(&e);
+			return e;
+		}
+		static bool rayCollision(AABB box, Ray r) {
+			if (r.point.x >= box.min.x && r.point.x <= box.max.x &&
+				r.point.y >= box.min.y && r.point.y <= box.max.y &&
+				r.point.z >= box.min.z && r.point.z <= box.max.z) {
+				return true;
+			}
+			return false;
+		}
+		static bool castRay(Ray* r, std::vector<Entity*> entities, glm::vec3 maxwalk) {
+			bool colliding = false;
+			glm::vec3 start = r->point;
+			while (!colliding) {
+				for (auto& i : entities) {
+					if (rayCollision(i->bounding, *r)) {
+						colliding = true;
+					}
+				}
+				r->point += r->inc;
+				r->distance = glm::abs(r->point - start);
+				if (r->distance.x > maxwalk.x || r->distance.y > maxwalk.y || r->distance.z > maxwalk.z) {
+					return false;
+				}
+			}
+			return true;
 		}
 	};
 
